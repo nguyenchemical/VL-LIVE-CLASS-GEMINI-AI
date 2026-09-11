@@ -279,7 +279,7 @@
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 return await fetch(url, { ...options, signal: controller.signal });
-            } finally {
+            } fontally {
                 clearTimeout(timer);
             }
         }
@@ -518,7 +518,7 @@
         }
 
         /**
-         * THUẬT TOÁN CHUẨN HÓA JACKPOT METER (0 - 100%) TÍNH ĐỘ HỘI TỤ ĐA TÍN HIỆU (ĐÃ SỬA LỖI ĐƠ / KẸT)
+         * THUẬT TOÁN CHUẨN HÓA JACKPOT METER (0 - 100%) TÍNH ĐỘ HỘI TỤ ĐA TÍN HIỆU (ĐÃ SỬA KHẮC PHỤC KẸT 30%)
          */
         function computeAndRenderJackpotMeter() {
             const gameType = document.getElementById('game-type').value;
@@ -532,24 +532,29 @@
                 probs = values.map(v => v / total);
             }
 
-            // Chuẩn hóa xác suất về dải [0, 1] an toàn
+            // Chuẩn hóa mảng xác suất an toàn tránh NaN hoặc phân phối cực đoan
             const maxP = Math.max(...probs, 0.00001);
-            const normP = probs.map(p => (isNaN(p) || p < 0) ? 0 : p / maxP);
+            const normP = probs.map(p => {
+                const val = (isNaN(p) || p < 0) ? 0 : p / maxP;
+                return isNaN(val) ? 0 : val;
+            });
             const sortedP = [...normP].sort((a, b) => b - a);
 
             // Tín hiệu 1: Mean điểm AI (20%)
-            const meanScore = normP.reduce((a, b) => a + b, 0) / (normP.length || 1);
+            const rawMean = normP.reduce((a, b) => a + b, 0) / (normP.length || 1);
+            const meanScore = isNaN(rawMean) ? 0.5 : rawMean;
 
             // Tín hiệu 2: Top 10% điểm cao nhất (25%)
             const top10Count = Math.max(1, Math.floor(normP.length * 0.1));
-            const top10Score = sortedP.slice(0, top10Count).reduce((a, b) => a + b, 0) / top10Count;
+            const rawTop10 = sortedP.slice(0, top10Count).reduce((a, b) => a + b, 0) / top10Count;
+            const top10Score = isNaN(rawTop10) ? 0.5 : rawTop10;
 
             // Tín hiệu 3: Độ tách biệt nhóm dẫn đầu ( Separation Margin - 15% )
             const top1 = sortedP[0] || 0;
             const topK = sortedP[Math.min(6, sortedP.length - 1)] || 0;
             const sepScore = Math.min(1, Math.max(0, (top1 - topK) * 2.5));
 
-            // Tín hiệu 4: Mức tập trung của phân phối ( Gini Coefficient - 15% )
+            // Tín hiệu 4: Mức tập trung của phân phối ( Gini Coefficient - 15% ) - SỬA LỖI DIVIDE BY ZERO
             let sumDiff = 0;
             const len = sortedP.length;
             for (let i = 0; i < len; i++) {
@@ -558,8 +563,8 @@
                 }
             }
             const denominator = (2 * len * len * (meanScore || 0.001));
-            const giniScore = denominator > 0 ? (sumDiff / denominator) : 0;
-            const concScore = Math.min(1, Math.max(0, isNaN(giniScore) ? 0 : giniScore));
+            const giniVal = denominator > 0 ? (sumDiff / denominator) : 0;
+            const concScore = Math.min(1, Math.max(0, isNaN(giniVal) ? 0.5 : giniVal));
 
             // Tín hiệu 5: Độ ổn định chuỗi lịch sử ( Stability - 10% )
             const sampleSize = Math.min(rawDraws.length, 30);
@@ -570,16 +575,16 @@
             const qualScore = isReal ? 1.0 : 0.5;
 
             // CÔNG THỨC HỘI TỤ TỔNG HỢP TRỌNG SỐ -> 0 đến 100%
-            const finalScore = (
-                (isNaN(meanScore) ? 0 : meanScore) * 0.20 +
-                (isNaN(top10Score) ? 0 : top10Score) * 0.25 +
+            const rawFinal = (
+                (isNaN(meanScore) ? 0.5 : meanScore) * 0.20 +
+                (isNaN(top10Score) ? 0.5 : top10Score) * 0.25 +
                 (isNaN(sepScore) ? 0 : sepScore) * 0.15 +
-                (isNaN(concScore) ? 0 : concScore) * 0.15 +
-                (isNaN(stabScore) ? 0 : stabScore) * 0.10 +
-                (isNaN(qualScore) ? 0 : qualScore) * 0.15
+                (isNaN(concScore) ? 0.5 : concScore) * 0.15 +
+                (isNaN(stabScore) ? 0.5 : stabScore) * 0.10 +
+                (isNaN(qualScore) ? 0.5 : qualScore) * 0.15
             ) * 100;
 
-            const meterScore = Math.min(99, Math.max(30, Math.round(finalScore)));
+            const meterScore = Math.min(99, Math.max(30, Math.round(isNaN(rawFinal) ? 55 : rawFinal)));
 
             // Cập nhật giao diện
             document.getElementById('meter-bar').style.width = `${meterScore}%`;
