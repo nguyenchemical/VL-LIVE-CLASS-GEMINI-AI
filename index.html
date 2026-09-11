@@ -251,18 +251,12 @@
             try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
         }
 
-        // Tối ưu hóa Backend cho iOS/Safari: Dùng CPU nếu WebGL bị treo hoặc dùng CPU fallback để không khóa Main Thread
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
+        // Tự động khởi tạo backend TensorFlow
         tf.ready().then(async () => {
-            try { 
-                if (isIOS) {
-                    await tf.setBackend('cpu');
-                } else {
-                    await tf.setBackend('webgl');
-                }
-            } catch (e) { 
-                await tf.setBackend('cpu'); 
+            try {
+                await tf.setBackend('webgl');
+            } catch (e) {
+                await tf.setBackend('cpu');
             }
             document.getElementById('tf-backend').innerText = tf.getBackend().toUpperCase();
         });
@@ -573,7 +567,7 @@
             }
         }
 
-        // HÀM HUẤN LUYỆN ASYNC TỐI ƯU HÓA KHÔNG KHÓA THIẾT BỊ DI ĐỘNG
+        // HÀM HUẤN LUYỆN ASYNC TỐI ƯU HÓA KHÔNG KHÓA UI
         async function trainAndPredict() {
             const btn = document.getElementById('btn-train');
             const statusEl = document.getElementById('training-status');
@@ -592,8 +586,8 @@
             progressEl.style.width = '10%';
             logTrain(`<b class="text-emerald-400">[TensorFlow AI]</b> Chạy thuật toán <b>${algoType}</b>`);
 
-            // Trả quyền điều khiển cho UI để thanh Progress & status hiển thị mượt trên iPad/Safari
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Giải phóng luồng hoàn toàn để UI cập nhật trạng thái "Đang huấn luyện..."
+            await tf.nextFrame();
 
             const chronological = [...rawDraws].reverse();
             const vectors = chronological.map(d => {
@@ -618,20 +612,28 @@
                 model.add(tf.layers.dense({ units: featureSize, activation: 'sigmoid' }));
                 model.compile({ optimizer: tf.train.adam(0.01), loss: 'binaryCrossentropy' });
 
-                const epochs = 10;
-                for (let e = 0; e < epochs; e++) {
-                    await model.fit(xs, ys, { epochs: 1, batchSize: 8 });
-                    const pct = Math.round(((e + 1) / epochs) * 85);
-                    progressEl.style.width = `${pct}%`;
-                    await new Promise(resolve => setTimeout(resolve, 20)); // Ép nhường luồng hoàn toàn
-                }
+                // Dùng callbacks.onEpochEnd kết hợp tf.nextFrame() để không gây Freeze UI
+                await model.fit(xs, ys, {
+                    epochs: 15,
+                    batchSize: 8,
+                    callbacks: {
+                        onEpochEnd: async (epoch, logs) => {
+                            const pct = Math.round(((epoch + 1) / 15) * 85);
+                            progressEl.style.width = `${pct}%`;
+                            await tf.nextFrame(); // Nhả luồng cho UI cập nhật
+                        }
+                    }
+                });
 
-                const predTensor = model.predict(tf.tensor2d([vectors[vectors.length - 1]]));
+                const lastInput = tf.tensor2d([vectors[vectors.length - 1]]);
+                const predTensor = model.predict(lastInput);
                 const densePred = await predTensor.data();
                 for (let i = 0; i < featureSize; i++) predictionData[i] += densePred[i];
 
+                // Dọn dẹp bộ nhớ Tensor
                 xs.dispose();
                 ys.dispose();
+                lastInput.dispose();
                 predTensor.dispose();
                 model.dispose();
             }
