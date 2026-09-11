@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Vietlott Live Gemini AI</title>
-    
+
+    <!-- PWA & Mobile Web App Meta / Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vietlott AI">
+
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="dns-prefetch" href="https://unpkg.com">
@@ -243,9 +251,19 @@
             try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
         }
 
+        // Tối ưu hóa Backend cho iOS/Safari: Dùng CPU nếu WebGL bị treo hoặc dùng CPU fallback để không khóa Main Thread
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
         tf.ready().then(async () => {
-            try { await tf.setBackend('webgl'); } 
-            catch (e) { await tf.setBackend('cpu'); }
+            try { 
+                if (isIOS) {
+                    await tf.setBackend('cpu');
+                } else {
+                    await tf.setBackend('webgl');
+                }
+            } catch (e) { 
+                await tf.setBackend('cpu'); 
+            }
             document.getElementById('tf-backend').innerText = tf.getBackend().toUpperCase();
         });
 
@@ -555,7 +573,7 @@
             }
         }
 
-        // HÀM HUẤN LUYỆN TENSORFLOW AI ĐÃ ĐƯỢC GIẢI PHÓNG LUỒNG RENDERING BẰNG TF.NEXTFRAME
+        // HÀM HUẤN LUYỆN ASYNC TỐI ƯU HÓA KHÔNG KHÓA THIẾT BỊ DI ĐỘNG
         async function trainAndPredict() {
             const btn = document.getElementById('btn-train');
             const statusEl = document.getElementById('training-status');
@@ -574,8 +592,8 @@
             progressEl.style.width = '10%';
             logTrain(`<b class="text-emerald-400">[TensorFlow AI]</b> Chạy thuật toán <b>${algoType}</b>`);
 
-            // Nhường luồng cho UI vẽ lại trạng thái ngay lập tức
-            await tf.nextFrame();
+            // Trả quyền điều khiển cho UI để thanh Progress & status hiển thị mượt trên iPad/Safari
+            await new Promise(resolve => setTimeout(resolve, 50));
 
             const chronological = [...rawDraws].reverse();
             const vectors = chronological.map(d => {
@@ -596,24 +614,20 @@
                 const ys = tf.tensor2d(vectors.slice(1));
                 
                 const model = tf.sequential();
-                model.add(tf.layers.dense({ units: 128, activation: 'relu', inputShape: [featureSize] }));
+                model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [featureSize] }));
                 model.add(tf.layers.dense({ units: featureSize, activation: 'sigmoid' }));
                 model.compile({ optimizer: tf.train.adam(0.01), loss: 'binaryCrossentropy' });
 
-                await model.fit(xs, ys, { 
-                    epochs: 12, 
-                    batchSize: 8,
-                    callbacks: {
-                        onEpochEnd: async (epoch, logs) => {
-                            await tf.nextFrame(); // Giải phóng UI giữa các Epochs để tránh đơ app
-                            const pct = Math.round(((epoch + 1) / 12) * 85);
-                            progressEl.style.width = `${pct}%`;
-                        }
-                    }
-                });
+                const epochs = 10;
+                for (let e = 0; e < epochs; e++) {
+                    await model.fit(xs, ys, { epochs: 1, batchSize: 8 });
+                    const pct = Math.round(((e + 1) / epochs) * 85);
+                    progressEl.style.width = `${pct}%`;
+                    await new Promise(resolve => setTimeout(resolve, 20)); // Ép nhường luồng hoàn toàn
+                }
 
                 const predTensor = model.predict(tf.tensor2d([vectors[vectors.length - 1]]));
-                const densePred = predTensor.dataSync();
+                const densePred = await predTensor.data();
                 for (let i = 0; i < featureSize; i++) predictionData[i] += densePred[i];
 
                 xs.dispose();
