@@ -18,10 +18,6 @@
     <link rel="manifest" href='data:application/manifest+json,{"name":"VIETLOTT LIVE CLASS GEMINI AI","short_name":"Vietlott AI","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#0f172a","icons":[{"src":"icon.png","sizes":"192x192 512x512","type":"image/png"}]}'>
 
     <!-- CDNs -->
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
-    <link rel="dns-prefetch" href="https://unpkg.com">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -29,7 +25,7 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
-        * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; box-sizing: border-box; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         html { height: 100%; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
         body { 
             min-height: 100%; min-height: -webkit-fill-available; 
@@ -38,9 +34,14 @@
             padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
         }
         @supports (height: 100dvh) { body { min-height: 100dvh; } }
-        select, button, input { -webkit-appearance: none; appearance: none; }
-        select:focus, button:focus, input:focus { outline: none; }
-        input, select, textarea { font-size: 16px; }
+        
+        /* CSS sửa lỗi Checkbox không bấm được */
+        .custom-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #f59e0b; /* Màu vàng cam khi check */
+        }
 
         .ball {
             width: 36px; height: 36px; border-radius: 50%;
@@ -68,29 +69,33 @@
     <!-- Modal Mật Khẩu (Xác thực qua Cloudflare Worker) -->
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4">
+            <!-- Logo hiển thị trực tiếp, không khung -->
             <img src="icon.png" alt="App Logo" class="w-20 h-20 mx-auto object-contain drop-shadow-xl">
             <div>
                 <h2 class="text-base font-extrabold text-amber-400 uppercase tracking-wide">VIETLOTT LIVE CLASS GEMINI AI</h2>
-                <p class="text-xs text-slate-400 mt-1">Vui lòng nhập mật khẩu xác thực từ Cloudflare Session</p>
+                <p class="text-xs text-slate-400 mt-1">Vui lòng nhập mật khẩu xác thực</p>
             </div>
-            <form onsubmit="handleAuthSubmit(event)" class="space-y-3">
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
                 <input type="password" id="app-password-input" placeholder="Mật khẩu truy cập..." required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-center text-slate-100 focus:border-amber-400 transition">
-                <div class="flex items-center justify-center gap-2 text-xs text-slate-400">
-                    <input type="checkbox" id="remember-me" class="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-0">
-                    <label for="remember-me">Ghi nhớ mật khẩu trên thiết bị này</label>
+                
+                <!-- SỬA LỖI TÙY CHỌN GHI NHỚ MẬT KHẨU -->
+                <div class="flex items-center justify-center gap-2 py-1 select-none cursor-pointer" onclick="toggleRememberCheckbox()">
+                    <input type="checkbox" id="remember-me" class="custom-checkbox" onclick="event.stopPropagation()">
+                    <label for="remember-me" class="text-xs text-slate-300 cursor-pointer select-none">Ghi nhớ mật khẩu trên thiết bị này</label>
                 </div>
+
                 <button type="submit" id="btn-login" class="w-full py-2.5 bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 hover:opacity-90 font-bold text-white rounded-xl shadow-lg transition">
                     XÁC THỰC VÀ MỞ APP
                 </button>
             </form>
-            <div id="auth-error" class="text-xs text-red-400 font-semibold hidden">Mật khẩu không đúng. Vui lòng thử lại!</div>
+            <div id="auth-error" class="text-xs text-red-400 font-semibold hidden">Mật khẩu không đúng hoặc kết nối Worker thất bại!</div>
         </div>
     </div>
 
     <!-- Header -->
     <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md shrink-0 py-2.5 px-3">
         <div class="max-w-6xl mx-auto flex justify-between items-center gap-2">
-            <!-- Logo Trực Tiếp (Không nằm trong khung chứa) -->
+            <!-- Logo Trực Tiếp không nằm trong khung -->
             <div class="flex items-center gap-3">
                 <img src="icon.png" alt="App Logo" class="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-lg shrink-0">
                 <div>
@@ -107,6 +112,9 @@
                 </button>
                 <button id="btn-retry-live" onclick="manualRetryLiveData()" title="Thử kết nối lại ngay" class="p-1.5 text-slate-400 hover:text-emerald-400 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700 transition">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="logoutApp()" title="Đăng xuất" class="p-1.5 text-slate-400 hover:text-red-400 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700 transition">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
                 </button>
                 <span id="data-status" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
@@ -135,7 +143,7 @@
                 </select>
             </div>
 
-            <!-- AI Model & Algo Type (Auto-Selected) -->
+            <!-- AI Model & Algo Type -->
             <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0 space-y-2">
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -197,12 +205,12 @@
                 </div>
             </div>
 
-            <!-- Multi-Signal Dynamic Jackpot Meter (Reflects Actual Generated Tickets) -->
+            <!-- Multi-Signal Dynamic Jackpot Meter -->
             <div id="jackpot-meter-card" class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2 shrink-0">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-1.5">
                         <i data-lucide="flame" id="meter-flame-icon" class="w-4 h-4 text-amber-500"></i>
-                        <span class="text-[10px] font-bold uppercase text-slate-300">Thước Đo Jackpot Real-Time (Dynamic Multi-Signal)</span>
+                        <span class="text-[10px] font-bold uppercase text-slate-300">Thước Đo Jackpot Real-Time</span>
                     </div>
                     <span id="alert-badge" class="px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-slate-800 text-slate-400">CHỜ TÍNH...</span>
                 </div>
@@ -267,12 +275,23 @@
         let chartInstance = null;
         let currentTicketCount = 2;
         let lastRealJackpotBillionVnd = null;
-        let currentGeneratedTickets = []; // Lưu các bộ số THỰC TẾ vừa tạo
+        let currentGeneratedTickets = [];
         let lastRawVectorProbs = [];
 
+        // ĐƯỜNG DẪN CLOUDFLARE WORKER CỦA BẠN
         const WORKER_URL = "https://vietlott-gemini.nguyenchemical.workers.dev/";
         const REPO_RAW_BASE = "https://nguyenchemical.github.io/Vietlott-Live-Gemini/data/";
-        const LS_KEYS = { archive: 'vietlott_real_archive_v2', session: 'vietlott_cf_session_token' };
+        const LS_KEYS = { session: 'vietlott_cf_session_token' };
+
+        function toggleRememberCheckbox() {
+            const cb = document.getElementById('remember-me');
+            cb.checked = !cb.checked;
+        }
+
+        function logoutApp() {
+            localStorage.removeItem(LS_KEYS.session);
+            location.reload();
+        }
 
         // --- BẢO MẬT BẰNG CLOUDFLARE SESSION ---
         async function checkAppAuthentication() {
@@ -287,13 +306,13 @@
 
         async function handleAuthSubmit(e) {
             e.preventDefault();
-            const passwordInput = document.getElementById('app-password-input').value;
+            const passwordInput = document.getElementById('app-password-input').value.trim();
             const remember = document.getElementById('remember-me').checked;
             const btn = document.getElementById('btn-login');
             const errEl = document.getElementById('auth-error');
 
             btn.disabled = true;
-            btn.innerText = "ĐANG XÁC THỰC CLOUDFLARE...";
+            btn.innerText = "ĐANG XÁC THỰC WORKER...";
             errEl.classList.add('hidden');
 
             try {
@@ -306,37 +325,35 @@
                 const data = await res.json();
                 if (res.ok && data.success) {
                     if (remember) {
-                        localStorage.setItem(LS_KEYS.session, data.token || 'authenticated_session');
+                        localStorage.setItem(LS_KEYS.session, data.token || 'auth_granted');
                     }
                     document.getElementById('auth-modal').classList.add('hidden');
+                    autoSelectBestModelForGame(document.getElementById('game-type').value);
+                    initApp();
                 } else {
+                    errEl.innerText = data.message || "Mật khẩu không đúng. Vui lòng thử lại!";
                     errEl.classList.remove('hidden');
                 }
             } catch (err) {
-                // Fallback giả định thành công nếu worker không bật endpoint verify riêng
-                if (passwordInput.length > 0) {
-                    if (remember) localStorage.setItem(LS_KEYS.session, 'local_granted');
-                    document.getElementById('auth-modal').classList.add('hidden');
-                } else {
-                    errEl.classList.remove('hidden');
-                }
+                console.error("Lỗi xác thực:", err);
+                errEl.innerText = "Lỗi kết nối tới Worker! Kiểm tra lại code Worker.";
+                errEl.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
                 btn.innerText = "XÁC THỰC VÀ MỞ APP";
             }
         }
 
-        // --- AUTO-SELECT AI MODEL KHI ĐỔI LOẠI HÌNH XỔ SỐ ---
         function autoSelectBestModelForGame(gameType) {
             const algoSelect = document.getElementById('algo-type');
             if (gameType === 'power655') {
-                algoSelect.value = 'ensemble'; // Power 6/55 phức tạp dùng Ensemble
+                algoSelect.value = 'ensemble';
             } else if (gameType === 'mega645') {
-                algoSelect.value = 'lstm-deep'; // Mega 6/45 phù hợp LSTM chuỗi thời gian
+                algoSelect.value = 'lstm-deep';
             } else if (gameType.startsWith('max3d')) {
-                algoSelect.value = 'markov-chain'; // Max 3D chọn theo xác suất chữ số Markov
+                algoSelect.value = 'markov-chain';
             } else if (gameType === 'lotto535') {
-                algoSelect.value = 'monte-carlo'; // Lotto 5/35 phù hợp Monte Carlo
+                algoSelect.value = 'monte-carlo';
             } else {
                 algoSelect.value = 'ensemble';
             }
@@ -441,7 +458,6 @@
             statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Live · ${now}</span>`;
             statusEl.className = "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
             
-            // Xóa điểm AI cũ khi cập nhật kỳ quay mới
             currentGeneratedTickets = [];
             resetJackpotMeter();
         }
@@ -546,32 +562,22 @@
             document.getElementById('alert-badge').innerText = "CHỜ TÍNH...";
         }
 
-        /**
-         * HÀM TÍNH JACKPOT METER DỰA TRÊN CÁC BỘ SỐ THỰC TẾ VỪA SINH RA (7 TÍN HIỆU CÂN BẰNG)
-         */
         function computeDynamicMultiSignalMeter() {
             const gameType = document.getElementById('game-type').value;
-
             if (!currentGeneratedTickets || currentGeneratedTickets.length === 0) {
                 resetJackpotMeter();
                 return;
             }
 
-            // 1. Tín hiệu Mean Score của các bộ số được sinh ra
             const ticketScores = currentGeneratedTickets.map(t => t.score);
             const meanScore = ticketScores.reduce((a, b) => a + b, 0) / ticketScores.length;
-
-            // 2. Top 10% điểm cao nhất
             const sortedScores = [...ticketScores].sort((a, b) => b - a);
             const topCount = Math.max(1, Math.floor(sortedScores.length * 0.1));
             const top10Mean = sortedScores.slice(0, topCount).reduce((a, b) => a + b, 0) / topCount;
-
-            // 3. Degree of Separation (Độ tách biệt)
             const minScore = Math.min(...ticketScores);
             const maxScore = Math.max(...ticketScores);
             const separation = maxScore - minScore;
 
-            // 4. Mức độ tập trung của phân phối xác suất
             let concentration = 0.5;
             if (lastRawVectorProbs && lastRawVectorProbs.length > 0) {
                 const maxProb = Math.max(...lastRawVectorProbs);
@@ -579,17 +585,11 @@
                 concentration = maxProb / (avgProb || 1);
             }
 
-            // 5. Độ ổn định (Variance)
             const variance = ticketScores.reduce((acc, v) => acc + Math.pow(v - meanScore, 2), 0) / ticketScores.length;
             const stabilityFactor = 1 / (1 + Math.sqrt(variance));
-
-            // 6. Chất lượng dữ liệu thật (Số lượng kỳ quay thực tế thu thập được)
             const dataQualityRatio = Math.min(1.0, rawDraws.length / 30);
-
-            // 7. Validation Agreement
             const agreementScore = (meanScore * 0.4) + (top10Mean * 0.3) + (stabilityFactor * 20);
 
-            // TỔNG HỢP MULTI-SIGNAL SCORE DẠNG DYNAMIC (48% - 98%)
             let dynamicMeter = Math.round(
                 (meanScore * 0.35) + 
                 (top10Mean * 0.25) + 
@@ -599,7 +599,6 @@
                 (agreementScore * 0.15)
             );
 
-            // Đảm bảo không bao giờ kẹt và phản ánh chân thực chất lượng lần bấm đó
             dynamicMeter = Math.min(98, Math.max(48, dynamicMeter));
 
             document.getElementById('meter-bar').style.width = `${dynamicMeter}%`;
@@ -679,10 +678,7 @@
             statusEl.innerText = "Hoàn tất!";
             logTrain(`<b class="text-emerald-400">[Thành công]</b> Đã sinh ${currentTicketCount} bộ số tối ưu.`);
 
-            // Sinh bộ số & Tính điểm cho từng bộ số THỰC TẾ
             generateAndRenderTickets(predictionData, gameType, currentTicketCount, maxNum);
-            
-            // Tính toán Jackpot Meter dựa trên bộ số thực tế vừa tạo
             computeDynamicMultiSignalMeter();
 
             if (typeof confetti === 'function') confetti({ particleCount: 40, spread: 50 });
@@ -723,7 +719,6 @@
                     }
                 }
 
-                // Điểm AI thực tế của bộ số này (85% -> 99%)
                 const calculatedTicketScore = Math.min(99, Math.max(85, Math.round(82 + (ticketProbSum * 4) + (Math.random() * 5))));
                 currentGeneratedTickets.push({ numbers: selectedNumbers, score: calculatedTicketScore });
 
