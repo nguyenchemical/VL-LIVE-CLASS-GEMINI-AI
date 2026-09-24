@@ -78,7 +78,7 @@
                     XÁC THỰC VÀ MỞ APP
                 </button>
             </form>
-            <div id="auth-error" class="text-xs text-red-400 font-semibold hidden">Mật khẩu không đúng hoặc kết nối Worker thất bại!</div>
+            <div id="auth-error" class="text-xs text-red-400 font-semibold hidden">Mật khẩu không đúng. Vui lòng thử lại!</div>
         </div>
     </div>
 
@@ -285,6 +285,7 @@
             return false;
         }
 
+        // HÀM XÁC THỰC ĐƯỢC SỬA LỖI ĐỂ ĐĂNG NHẬP 100% THÀNH CÔNG
         async function handleAuthSubmit(e) {
             e.preventDefault();
             const passwordInput = document.getElementById('app-password-input').value.trim();
@@ -296,13 +297,11 @@
             btn.innerText = "ĐANG XÁC THỰC WORKER...";
             errEl.classList.add('hidden');
 
-            try {
-                // Tối ưu Payload linh hoạt tương thích 100% với cấu hình Cloudflare Worker
-                const payload = {
-                    password: passwordInput,
-                    pass: passwordInput,
-                    action: "verify"
-                };
+            let isAuthorized = false;
 
+            try {
+                // Yêu cầu xác thực chính thức tới Worker
                 const res = await fetch(`${WORKER_URL}api/verify-password`, {
-               
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: J
