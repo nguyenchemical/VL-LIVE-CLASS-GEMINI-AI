@@ -68,7 +68,6 @@
     <!-- Modal Mật Khẩu -->
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4">
-            <!-- LOGO BO TRÒN 4 CẠNH KHÉO LÉO -->
             <img src="icon.png" alt="App Logo" class="w-20 h-20 mx-auto object-cover rounded-2xl border-2 border-slate-700/50 shadow-lg">
             <div>
                 <h2 class="text-base font-extrabold text-amber-400 uppercase tracking-wide">VIETLOTT LIVE CLASS GEMINI AI</h2>
@@ -93,7 +92,6 @@
     <!-- Header -->
     <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md shrink-0 py-2.5 px-3">
         <div class="max-w-6xl mx-auto flex justify-between items-center gap-2">
-            <!-- LOGO BO TRÒN 4 CẠNH TRÊN HEADER -->
             <div class="flex items-center gap-3">
                 <img src="icon.png" alt="App Logo" class="w-10 h-10 sm:w-11 sm:h-11 object-cover rounded-xl border border-slate-700/50 shadow-md shrink-0">
                 <div>
@@ -417,12 +415,12 @@
                     const count = gameType === 'max3d' ? 1 : 2;
                     const sets = [];
                     for (let k = 0; k < count; k++) sets.push(`${getRandomInt(0, 9)}${getRandomInt(0, 9)}${getRandomInt(0, 9)}`);
-                    draws.push({ id: `#00${1200 - i}`, date: '12/09/2026', numbers: sets });
+                    draws.push({ id: `#00${1200 - i}`, date: '24/09/2026', numbers: sets });
                 } else {
                     const maxNum = gameType === 'mega645' ? 45 : (gameType === 'power655' ? 55 : 35);
                     const set = new Set();
                     while (set.size < 6) set.add(getRandomInt(1, maxNum));
-                    draws.push({ id: `#00${1200 - i}`, date: '12/09/2026', numbers: Array.from(set).sort((a,b)=>a-b) });
+                    draws.push({ id: `#00${1200 - i}`, date: '24/09/2026', numbers: Array.from(set).sort((a,b)=>a-b) });
                 }
             }
             return draws;
@@ -551,6 +549,7 @@
             document.getElementById('alert-badge').innerText = "CHỜ TÍNH...";
         }
 
+        // HÀM TÍNH METER ĐỘNG ĐÃ ĐƯỢC NÂNG CẤP DẢI BIẾN THIÊN
         function computeDynamicMultiSignalMeter() {
             const gameType = document.getElementById('game-type').value;
             if (!currentGeneratedTickets || currentGeneratedTickets.length === 0) {
@@ -560,52 +559,44 @@
 
             const ticketScores = currentGeneratedTickets.map(t => t.score);
             const meanScore = ticketScores.reduce((a, b) => a + b, 0) / ticketScores.length;
-            const sortedScores = [...ticketScores].sort((a, b) => b - a);
-            const topCount = Math.max(1, Math.floor(sortedScores.length * 0.1));
-            const top10Mean = sortedScores.slice(0, topCount).reduce((a, b) => a + b, 0) / topCount;
-            const minScore = Math.min(...ticketScores);
-            const maxScore = Math.max(...ticketScores);
-            const separation = maxScore - minScore;
-
-            let concentration = 0.5;
-            if (lastRawVectorProbs && lastRawVectorProbs.length > 0) {
-                const maxProb = Math.max(...lastRawVectorProbs);
-                const avgProb = lastRawVectorProbs.reduce((a, b) => a + b, 0) / lastRawVectorProbs.length;
-                concentration = maxProb / (avgProb || 1);
-            }
 
             const variance = ticketScores.reduce((acc, v) => acc + Math.pow(v - meanScore, 2), 0) / ticketScores.length;
-            const stabilityFactor = 1 / (1 + Math.sqrt(variance));
-            const dataQualityRatio = Math.min(1.0, rawDraws.length / 30);
-            const agreementScore = (meanScore * 0.4) + (top10Mean * 0.3) + (stabilityFactor * 20);
+            const stdDev = Math.sqrt(variance);
 
-            let dynamicMeter = Math.round(
-                (meanScore * 0.35) + 
-                (top10Mean * 0.25) + 
-                (concentration * 5) + 
-                (separation * 0.1) + 
-                (dataQualityRatio * 15) +
-                (agreementScore * 0.15)
-            );
+            let concentrationFactor = 0;
+            if (lastRawVectorProbs && lastRawVectorProbs.length > 0) {
+                const sortedProbs = [...lastRawVectorProbs].sort((a, b) => b - a);
+                const top3Sum = sortedProbs.slice(0, 3).reduce((a, b) => a + b, 0);
+                const totalSum = sortedProbs.reduce((a, b) => a + b, 0) || 1;
+                concentrationFactor = (top3Sum / totalSum) * 20;
+            }
 
-            dynamicMeter = Math.min(98, Math.max(48, dynamicMeter));
+            let dynamicMeter = Math.round((meanScore * 0.75) - (stdDev * 1.2) + concentrationFactor);
+            dynamicMeter = Math.min(98, Math.max(35, dynamicMeter));
 
-            document.getElementById('meter-bar').style.width = `${dynamicMeter}%`;
-            document.getElementById('meter-score-text').innerText = `${dynamicMeter}%`;
+            const meterBar = document.getElementById('meter-bar');
+            const scoreText = document.getElementById('meter-score-text');
+            const badge = document.getElementById('alert-badge');
+
+            meterBar.style.width = `${dynamicMeter}%`;
+            scoreText.innerText = `${dynamicMeter}%`;
+
             document.getElementById('jackpot-val-display').innerText = lastRealJackpotBillionVnd 
                 ? `${lastRealJackpotBillionVnd.toFixed(1)} Tỷ VNĐ` 
-                : (gameType === 'power655' ? "128.5 Tỷ VNĐ" : "38.2 Tỷ VNĐ");
+                : (gameType === 'power655' ? "128.5 Tỷ VNĐ" : (gameType === 'mega645' ? "38.2 Tỷ VNĐ" : "-- Tỷ VNĐ"));
 
-            const badge = document.getElementById('alert-badge');
-            if (dynamicMeter >= 82) {
+            if (dynamicMeter >= 85) {
                 badge.className = "px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse";
                 badge.innerText = "HỘI TỤ RẤT CAO";
-            } else if (dynamicMeter >= 68) {
+            } else if (dynamicMeter >= 70) {
                 badge.className = "px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30";
-                badge.innerText = "TỐT";
+                badge.innerText = "TÍN HIỆU TỐT";
+            } else if (dynamicMeter >= 55) {
+                badge.className = "px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                badge.innerText = "MỨC CÂN BẰNG";
             } else {
-                badge.className = "px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-slate-800 text-slate-400";
-                badge.innerText = "ỔN ĐỊNH";
+                badge.className = "px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-slate-800 text-slate-400 border border-slate-700";
+                badge.innerText = "ĐỘ PHÂN TÁN CAO";
             }
         }
 
@@ -674,13 +665,14 @@
             btn.disabled = false;
         }
 
+        // HÀM CHẤM ĐIỂM AI TỰ ĐỘNG BIẾN THIÊN
         function generateAndRenderTickets(probabilities, gameType, count, maxNum) {
             const container = document.getElementById('predictions-container');
             container.innerHTML = '';
             currentGeneratedTickets = [];
 
             const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-            const candidates = probabilities.map((prob, idx) => ({ number: idx + (gameType.startsWith('max3d') ? 0 : 1), prob: Math.max(prob, 0.01) }));
+            const candidates = probabilities.map((prob, idx) => ({ number: idx + (gameType.startsWith('max3d') ? 0 : 1), prob: Math.max(prob, 0.001) }));
 
             for (let c = 0; c < count; c++) {
                 let selectedNumbers = [];
@@ -688,12 +680,12 @@
 
                 if (gameType === 'mega645' || gameType === 'power655' || gameType === 'lotto535') {
                     candidates.sort((a, b) => b.prob - a.prob);
-                    const pool = candidates.slice(0, 22).map(x => x.number);
+                    const pool = candidates.slice(0, 18).map(x => x.number);
                     const set = new Set();
                     while (set.size < 6) set.add(pool[getRandomInt(0, pool.length - 1)] || getRandomInt(1, maxNum));
                     selectedNumbers = Array.from(set).sort((a, b) => a - b);
                     
-                    ticketProbSum = selectedNumbers.reduce((acc, num) => acc + (probabilities[num - 1] || 0.1), 0);
+                    ticketProbSum = selectedNumbers.reduce((acc, num) => acc + (probabilities[num - 1] || 0.05), 0);
                     if (gameType === 'power655') selectedNumbers.push(getRandomInt(1, maxNum));
                 } else if (gameType.startsWith('max3d')) {
                     const numSets = gameType === 'max3d' ? 1 : 2;
@@ -704,11 +696,13 @@
                         let d2 = topDigits[getRandomInt(0, topDigits.length - 1)] ?? getRandomInt(0, 9);
                         let d3 = topDigits[getRandomInt(0, topDigits.length - 1)] ?? getRandomInt(0, 9);
                         selectedNumbers.push(`${d1}${d2}${d3}`);
-                        ticketProbSum += ((probabilities[d1] || 0.1) + (probabilities[d2] || 0.1) + (probabilities[d3] || 0.1));
+                        ticketProbSum += ((probabilities[d1] || 0.05) + (probabilities[d2] || 0.05) + (probabilities[d3] || 0.05));
                     }
                 }
 
-                const calculatedTicketScore = Math.min(99, Math.max(85, Math.round(82 + (ticketProbSum * 4) + (Math.random() * 5))));
+                const rawScore = Math.round((ticketProbSum * 45) + (Math.random() * 12) + 40);
+                const calculatedTicketScore = Math.min(99, Math.max(52, rawScore));
+                
                 currentGeneratedTickets.push({ numbers: selectedNumbers, score: calculatedTicketScore });
 
                 const card = document.createElement('div');
