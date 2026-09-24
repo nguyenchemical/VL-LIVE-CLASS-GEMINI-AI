@@ -35,12 +35,11 @@
         }
         @supports (height: 100dvh) { body { min-height: 100dvh; } }
         
-        /* CSS sửa lỗi Checkbox không bấm được */
         .custom-checkbox {
             width: 18px;
             height: 18px;
             cursor: pointer;
-            accent-color: #f59e0b; /* Màu vàng cam khi check */
+            accent-color: #f59e0b;
         }
 
         .ball {
@@ -66,11 +65,11 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans antialiased">
 
-    <!-- Modal Mật Khẩu (Xác thực qua Cloudflare Worker) -->
+    <!-- Modal Mật Khẩu -->
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4">
-            <!-- Logo hiển thị trực tiếp, không khung -->
-            <img src="icon.png" alt="App Logo" class="w-20 h-20 mx-auto object-contain drop-shadow-xl">
+            <!-- LOGO BO TRÒN 4 CẠNH KHÉO LÉO -->
+            <img src="icon.png" alt="App Logo" class="w-20 h-20 mx-auto object-cover rounded-2xl border-2 border-slate-700/50 shadow-lg">
             <div>
                 <h2 class="text-base font-extrabold text-amber-400 uppercase tracking-wide">VIETLOTT LIVE CLASS GEMINI AI</h2>
                 <p class="text-xs text-slate-400 mt-1">Vui lòng nhập mật khẩu xác thực</p>
@@ -78,7 +77,6 @@
             <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
                 <input type="password" id="app-password-input" placeholder="Mật khẩu truy cập..." required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-center text-slate-100 focus:border-amber-400 transition">
                 
-                <!-- SỬA LỖI TÙY CHỌN GHI NHỚ MẬT KHẨU -->
                 <div class="flex items-center justify-center gap-2 py-1 select-none cursor-pointer" onclick="toggleRememberCheckbox()">
                     <input type="checkbox" id="remember-me" class="custom-checkbox" onclick="event.stopPropagation()">
                     <label for="remember-me" class="text-xs text-slate-300 cursor-pointer select-none">Ghi nhớ mật khẩu trên thiết bị này</label>
@@ -95,9 +93,9 @@
     <!-- Header -->
     <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md shrink-0 py-2.5 px-3">
         <div class="max-w-6xl mx-auto flex justify-between items-center gap-2">
-            <!-- Logo Trực Tiếp không nằm trong khung -->
+            <!-- LOGO BO TRÒN 4 CẠNH TRÊN HEADER -->
             <div class="flex items-center gap-3">
-                <img src="icon.png" alt="App Logo" class="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-lg shrink-0">
+                <img src="icon.png" alt="App Logo" class="w-10 h-10 sm:w-11 sm:h-11 object-cover rounded-xl border border-slate-700/50 shadow-md shrink-0">
                 <div>
                     <h1 class="text-xs sm:text-lg font-black bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 bg-clip-text text-transparent leading-none tracking-tight">
                         VIETLOTT LIVE CLASS GEMINI AI
@@ -128,7 +126,6 @@
     <main class="max-w-6xl mx-auto w-full px-2 sm:px-4 py-3 flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
 
         <div class="md:col-span-5 flex flex-col gap-2.5">
-            <!-- Game Select -->
             <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0">
                 <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1 flex items-center gap-1">
                     <i data-lucide="sliders" class="w-3.5 h-3.5 text-red-500"></i> Loại hình xổ số
@@ -143,7 +140,6 @@
                 </select>
             </div>
 
-            <!-- AI Model & Algo Type -->
             <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0 space-y-2">
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -163,7 +159,6 @@
                 </div>
             </div>
 
-            <!-- Number of Sets -->
             <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0">
                 <label class="block text-[10px] font-bold uppercase text-slate-300 mb-1">SỐ LƯỢNG BỘ SỐ DỰ ĐOÁN</label>
                 <div class="bg-slate-950 border border-slate-700/80 rounded-lg p-2 flex items-center justify-between">
@@ -176,7 +171,6 @@
                 </div>
             </div>
 
-            <!-- Progress Log -->
             <div class="bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-[10px] space-y-1 shrink-0">
                 <div class="text-slate-400 flex justify-between">
                     <span>Engine: <b id="tf-backend" class="text-emerald-400">Initializing...</b></span>
@@ -189,14 +183,13 @@
             </div>
         </div>
 
-        <!-- Right Side: Predictions & Jackpot Meter -->
         <div class="md:col-span-7 flex flex-col gap-2.5 min-h-0">
             <div class="bg-slate-800/80 border border-slate-700/80 p-3 rounded-xl flex-1 flex flex-col min-h-[220px]">
                 <div class="flex items-center justify-between mb-2 shrink-0">
                     <h2 class="text-xs font-bold uppercase text-amber-400 flex items-center gap-1">
                         <i data-lucide="sparkles" class="w-4 h-4"></i> Dự đoán từ AI Gemini
                     </h2>
-                    <span class="text-[9px] text-emerald-400 font-mono">Worker GitHub Auto Sync</span>
+                    <span class="text-[9px] text-emerald-400 font-mono">24/7 Worker Cron Sync Active</span>
                 </div>
                 <div id="predictions-container" class="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-1 max-h-[350px] md:max-h-none">
                     <div class="text-xs text-slate-400 italic text-center py-10 bg-slate-950/50 rounded-lg border border-slate-800">
@@ -205,7 +198,6 @@
                 </div>
             </div>
 
-            <!-- Multi-Signal Dynamic Jackpot Meter -->
             <div id="jackpot-meter-card" class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2 shrink-0">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-1.5">
@@ -223,7 +215,6 @@
                 </div>
             </div>
 
-            <!-- Train Button -->
             <div class="sticky bottom-0 z-20 pt-1 bg-slate-900 md:static">
                 <button id="btn-train" onclick="trainAndPredict()" class="w-full py-3 bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 active:opacity-90 font-extrabold text-white rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider">
                     <i data-lucide="cpu" class="w-4 h-4"></i> HUẤN LUYỆN TENSORFLOW AI
@@ -278,7 +269,6 @@
         let currentGeneratedTickets = [];
         let lastRawVectorProbs = [];
 
-        // ĐƯỜNG DẪN CLOUDFLARE WORKER CỦA BẠN
         const WORKER_URL = "https://vietlott-gemini.nguyenchemical.workers.dev/";
         const REPO_RAW_BASE = "https://nguyenchemical.github.io/Vietlott-Live-Gemini/data/";
         const LS_KEYS = { session: 'vietlott_cf_session_token' };
@@ -293,7 +283,6 @@
             location.reload();
         }
 
-        // --- BẢO MẬT BẰNG CLOUDFLARE SESSION ---
         async function checkAppAuthentication() {
             const token = localStorage.getItem(LS_KEYS.session);
             if (token) {
