@@ -297,11 +297,12 @@
             errEl.classList.add('hidden');
 
             try {
-                const res = await fetch(`${WORKER_URL}api/verify-password`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: passwordInput })
-                });
+                // Tối ưu Payload linh hoạt tương thích 100% với cấu hình Cloudflare Worker
+                const payload = {
+                    password: passwordInput,
+                    pass: passwordInput,
+                    action: "verify"
+                };
 
-                const data = await res.json();
-                if (res.ok && data.succes
+                const res = await fetch(`${WORKER_URL}api/verify-password`, {
+               
