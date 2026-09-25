@@ -189,7 +189,7 @@
                 </div>
             </div>
 
-            <!-- THƯỚC ĐO METER JACKPOT -->
+            <!-- THƯỚC ĐO METER JACKPOT REAL-TIME -->
             <div id="jackpot-meter-card" class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2 shrink-0">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-1.5">
@@ -285,7 +285,7 @@
             return false;
         }
 
-        // HÀM XÁC THỰC ĐƯỢC SỬA LỖI ĐỂ ĐĂNG NHẬP 100% THÀNH CÔNG
+        // HÀM SỬA LỖI ĐĂNG NHẬP THÔNG MINH - THỬ CẢ POST & GET
         async function handleAuthSubmit(e) {
             e.preventDefault();
             const passwordInput = document.getElementById('app-password-input').value.trim();
@@ -293,15 +293,16 @@
             const btn = document.getElementById('btn-login');
             const errEl = document.getElementById('auth-error');
 
+            if (!passwordInput) return;
+
             btn.disabled = true;
             btn.innerText = "ĐANG XÁC THỰC WORKER...";
             errEl.classList.add('hidden');
 
-            let isAuthorized = false;
+            let authenticated = false;
 
             try {
-                // Yêu cầu xác thực chính thức tới Worker
-                const res = await fetch(`${WORKER_URL}api/verify-password`, {
+                // Lần 1: Thử POST JSON
+                let res = await fetch(`${WORKER_URL}api/verify-password`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: J
+                    headers: { 'Content-Type': 'application/json' 
