@@ -1,149 +1,311 @@
-export default {
-  // 1. CHẠY TỰ ĐỘNG THEO CRON TRIGGER (6 LẦN / NGÀY)
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(updateAllVietlottDataToGithub(env));
-  },
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>VIETLOTT LIVE CLASS GEMINI AI</title>
+    
+    <!-- Apple / Mobile Web App Setup -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vietlott AI">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
 
-  // 2. XỬ LÝ YÊU CẦU HTTP TỪ APP
-  async fetch(request, env, ctx) {
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    };
+    <!-- Icons & Manifest -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"VIETLOTT LIVE CLASS GEMINI AI","short_name":"Vietlott AI","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#0f172a","icons":[{"src":"icon.png","sizes":"192x192 512x512","type":"image/png"}]}'>
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
+    <!-- CDNs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-    const url = new URL(request.url);
-
-    // Endpoint xác thực mật khẩu
-    if (url.pathname === '/api/verify-password' && request.method === 'POST') {
-      try {
-        const body = await request.json();
-        if (body.password && body.password === env.APP_PASSWORD) {
-          return new Response(JSON.stringify({ 
-            success: true, 
-            token: 'auth_session_' + Date.now(),
-            message: 'Mật khẩu chính xác!' 
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        html { height: 100%; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+        body { 
+            min-height: 100%; min-height: -webkit-fill-available; 
+            margin: 0; padding: 0; display: flex; flex-direction: column; 
+            background-color: #0f172a; 
+            padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
         }
-        return new Response(JSON.stringify({ success: false, message: 'Mật khẩu không đúng!' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, message: 'Lỗi request!' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    // Endpoint ép Worker chạy cập nhật thủ công (để test nhanh)
-    if (url.pathname === '/api/trigger-sync' && request.method === 'POST') {
-      const result = await updateAllVietlottDataToGithub(env);
-      return new Response(JSON.stringify(result), {
-        status: result.success ? 200 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    return new Response('Vietlott Worker & Sync Engine Active', { headers: corsHeaders });
-  }
-};
-
-// Hàm cào dữ liệu Vietlott và Push lên GitHub
-async function updateAllVietlottDataToGithub(env) {
-  const GITHUB_OWNER = "nguyenchemical";
-  const GITHUB_REPO = "Vietlott-Live-Gemini";
-  const GITHUB_BRANCH = "main";
-  
-  // Lấy Secret GH_TOKEN đã cấu hình sẵn trong Cloudflare
-  const TOKEN = env.GH_TOKEN;
-
-  if (!TOKEN) {
-    return { success: false, message: "Thiếu GH_TOKEN trong Secrets của Worker!" };
-  }
-
-  const games = ['mega645', 'power655', 'lotto535', 'max3d', 'max3dplus', 'max3dpro'];
-  const logResults = [];
-
-  for (const game of games) {
-    try {
-      // Cào dữ liệu mới nhất
-      const latestData = await fetchLatestDataFromVietlott(game);
-      
-      const filePath = `data/${game}.json`;
-      const githubApiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}?ref=${GITHUB_BRANCH}`;
-
-      // 1. Lấy SHA của file hiện tại trên Repo
-      let sha = "";
-      const getFileRes = await fetch(githubApiUrl, {
-        headers: {
-          'Authorization': `token ${TOKEN}`,
-          'User-Agent': 'Cloudflare-Worker-Vietlott-Sync'
+        @supports (height: 100dvh) { body { min-height: 100dvh; } }
+        
+        .custom-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #f59e0b;
         }
-      });
 
-      if (getFileRes.ok) {
-        const fileInfo = await getFileRes.json();
-        sha = fileInfo.sha;
-      }
+        .ball {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.95rem;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4);
+            margin: 1.5px; flex-shrink: 0;
+        }
+        @media (min-width: 640px) { .ball { width: 44px; height: 44px; font-size: 1.15rem; margin: 2px; } }
 
-      // 2. Commit & Push file JSON cập nhật lên GitHub
-      const contentEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(latestData, null, 2))));
-      const updateRes = await fetch(githubApiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${TOKEN}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'Cloudflare-Worker-Vietlott-Sync'
-        },
-        body: JSON.stringify({
-          message: `[Auto Sync Worker] Cập nhật dữ liệu ${game} ngày ${new Date().toLocaleDateString('vi-VN')}`,
-          content: contentEncoded,
-          sha: sha || undefined,
-          branch: GITHUB_BRANCH
-        })
-      });
+        .ball-mega { background: radial-gradient(circle at 35% 35%, #fb7185, #e11d48, #9f1239); color: white; }
+        .ball-power { background: radial-gradient(circle at 35% 35%, #fde047, #d97706, #78350f); color: white; }
+        .ball-power-special { background: radial-gradient(circle at 35% 35%, #fb7185, #e11d48, #9f1239); color: white; border: 2px solid #fde047; }
+        .ball-lotto { background: radial-gradient(circle at 35% 35%, #4ade80, #16a34a, #14532d); color: white; }
+        .ball-max3d { background: radial-gradient(circle at 35% 35%, #d946ef, #c026d3, #701a75); color: white; }
+        .divider-3d { display: inline-block; width: 2px; height: 24px; background-color: #64748b; margin: 0 4px; align-self: center; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased">
 
-      if (updateRes.ok) {
-        logResults.push({ game, status: 'synced' });
-      } else {
-        logResults.push({ game, status: 'failed_push', error: await updateRes.text() });
-      }
-    } catch (err) {
-      logResults.push({ game, status: 'error', error: err.message });
-    }
-  }
+    <!-- Modal Mật Khẩu -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4">
+            <!-- LOGO BO TRÒN 4 CẠNH KHÉO LÉO -->
+            <img src="icon.png" alt="App Logo" class="w-20 h-20 mx-auto object-cover rounded-2xl border-2 border-slate-700/50 shadow-lg">
+            <div>
+                <h2 class="text-base font-extrabold text-amber-400 uppercase tracking-wide">VIETLOTT LIVE CLASS GEMINI AI</h2>
+                <p class="text-xs text-slate-400 mt-1">Vui lòng nhập mật khẩu xác thực</p>
+            </div>
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <input type="password" id="app-password-input" placeholder="Mật khẩu truy cập..." required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-center text-slate-100 focus:border-amber-400 transition">
+                
+                <div class="flex items-center justify-center gap-2 py-1 select-none cursor-pointer" onclick="toggleRememberCheckbox()">
+                    <input type="checkbox" id="remember-me" class="custom-checkbox" onclick="event.stopPropagation()">
+                    <label for="remember-me" class="text-xs text-slate-300 cursor-pointer select-none">Ghi nhớ mật khẩu trên thiết bị này</label>
+                </div>
 
-  return { success: true, details: logResults };
-}
+                <button type="submit" id="btn-login" class="w-full py-2.5 bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 hover:opacity-90 font-bold text-white rounded-xl shadow-lg transition">
+                    XÁC THỰC VÀ MỞ APP
+                </button>
+            </form>
+            <div id="auth-error" class="text-xs text-red-400 font-semibold hidden">Mật khẩu không đúng hoặc kết nối Worker thất bại!</div>
+        </div>
+    </div>
 
-// Hàm giả lập cào dữ liệu từ Vietlott
-async function fetchLatestDataFromVietlott(gameType) {
-  const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-  const draws = [];
-  const todayStr = new Date().toLocaleDateString('vi-VN');
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md shrink-0 py-2.5 px-3">
+        <div class="max-w-6xl mx-auto flex justify-between items-center gap-2">
+            <!-- LOGO BO TRÒN 4 CẠNH TRÊN HEADER -->
+            <div class="flex items-center gap-3">
+                <img src="icon.png" alt="App Logo" class="w-10 h-10 sm:w-11 sm:h-11 object-cover rounded-xl border border-slate-700/50 shadow-md shrink-0">
+                <div>
+                    <h1 class="text-xs sm:text-lg font-black bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 bg-clip-text text-transparent leading-none tracking-tight">
+                        VIETLOTT LIVE CLASS GEMINI AI
+                    </h1>
+                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5">Deep Learning & Dynamic Multi-Signal Engine</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="toggleStatsModal(true)" class="px-2.5 py-1.5 text-xs font-bold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-lg border border-indigo-500/30 transition flex items-center gap-1">
+                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Thống kê</span>
+                </button>
+                <button id="btn-retry-live" onclick="manualRetryLiveData()" title="Thử kết nối lại ngay" class="p-1.5 text-slate-400 hover:text-emerald-400 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700 transition">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="logoutApp()" title="Đăng xuất" class="p-1.5 text-slate-400 hover:text-red-400 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700 transition">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+                <span id="data-status" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>Đang kết nối...</span>
+                </span>
+            </div>
+        </div>
+    </header>
 
-  for (let i = 0; i < 30; i++) {
-    if (gameType.startsWith('max3d')) {
-      const count = gameType === 'max3d' ? 1 : 2;
-      const sets = [];
-      for (let k = 0; k < count; k++) sets.push(`${getRandomInt(0, 9)}${getRandomInt(0, 9)}${getRandomInt(0, 9)}`);
-      draws.push({ id: `#00${1350 - i}`, date: todayStr, numbers: sets });
-    } else {
-      const maxNum = gameType === 'mega645' ? 45 : (gameType === 'power655' ? 55 : 35);
-      const set = new Set();
-      while (set.size < 6) set.add(getRandomInt(1, maxNum));
-      draws.push({ id: `#00${1350 - i}`, date: todayStr, numbers: Array.from(set).sort((a,b)=>a-b) });
-    }
-  }
-  return draws;
-}
-          
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto w-full px-2 sm:px-4 py-3 flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
+
+        <div class="md:col-span-5 flex flex-col gap-2.5">
+            <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0">
+                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1 flex items-center gap-1">
+                    <i data-lucide="sliders" class="w-3.5 h-3.5 text-red-500"></i> Loại hình xổ số
+                </label>
+                <select id="game-type" onchange="handleGameTypeChange()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-bold text-amber-400 outline-none">
+                    <option value="mega645">Mega 6/45 (1 - 45)</option>
+                    <option value="power655">Power 6/55 (1 - 55)</option>
+                    <option value="lotto535">Lotto 5/35 (5 số 01-35 + 1 ĐB 01-12)</option>
+                    <option value="max3d">Max 3D (1 bộ 3 số)</option>
+                    <option value="max3dplus">Max 3D+ (2 bộ 3 số)</option>
+                    <option value="max3dpro">Max 3D Pro (2 bộ 3 số đặc biệt)</option>
+                </select>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0 space-y-2">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
+                            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-indigo-400"></i> AI Model & Thuật toán
+                        </label>
+                        <span id="auto-tag" class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">AUTO OPTIMIZED</span>
+                    </div>
+                    <select id="algo-type" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-semibold text-slate-200 outline-none">
+                        <option value="ensemble">SUPER ENSEMBLE (DNN + LSTM + Markov)</option>
+                        <option value="lstm-deep">LSTM Recurrent Pattern Neural Network</option>
+                        <option value="tf-dense">Deep Neural Network (DNN Multi-Layer)</option>
+                        <option value="markov-chain">Markov Chain Matrix Probability</option>
+                        <option value="freq-pattern">Frequency & Gap Pattern Matching</option>
+                        <option value="monte-carlo">Monte Carlo Convergence Simulation</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700/80 p-2.5 rounded-xl shrink-0">
+                <label class="block text-[10px] font-bold uppercase text-slate-300 mb-1">SỐ LƯỢNG BỘ SỐ DỰ ĐOÁN</label>
+                <div class="bg-slate-950 border border-slate-700/80 rounded-lg p-2 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-slate-300 pl-1">Bộ số muốn tạo</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="adjustTicketCount(-1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-extrabold flex items-center justify-center transition">&minus;</button>
+                        <span id="ticket-count-display" class="w-5 text-center text-amber-400 font-extrabold text-sm font-mono">2</span>
+                        <button type="button" onclick="adjustTicketCount(1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-extrabold flex items-center justify-center transition">&#43;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-[10px] space-y-1 shrink-0">
+                <div class="text-slate-400 flex justify-between">
+                    <span>Engine: <b id="tf-backend" class="text-emerald-400">Initializing...</b></span>
+                    <span>Status: <b id="training-status" class="text-amber-400">Sẵn sàng</b></span>
+                </div>
+                <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                    <div id="training-progress" class="bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500 h-full w-0 transition-all duration-150"></div>
+                </div>
+                <div id="training-log" class="h-14 overflow-y-auto custom-scrollbar leading-tight text-[9px] border-t border-slate-800/80 pt-1 mt-1"></div>
+            </div>
+        </div>
+
+        <div class="md:col-span-7 flex flex-col gap-2.5 min-h-0">
+            <div class="bg-slate-800/80 border border-slate-700/80 p-3 rounded-xl flex-1 flex flex-col min-h-[220px]">
+                <div class="flex items-center justify-between mb-2 shrink-0">
+                    <h2 class="text-xs font-bold uppercase text-amber-400 flex items-center gap-1">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> Dự đoán từ AI Gemini
+                    </h2>
+                    <span class="text-[9px] text-emerald-400 font-mono">24/7 Worker Cron Sync Active</span>
+                </div>
+                <div id="predictions-container" class="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-1 max-h-[350px] md:max-h-none">
+                    <div class="text-xs text-slate-400 italic text-center py-10 bg-slate-950/50 rounded-lg border border-slate-800">
+                        Nhấn nút <b>"HUẤN LUYỆN TENSORFLOW AI"</b> bên dưới để bắt đầu.
+                    </div>
+                </div>
+            </div>
+
+            <div id="jackpot-meter-card" class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="flame" id="meter-flame-icon" class="w-4 h-4 text-amber-500"></i>
+                        <span class="text-[10px] font-bold uppercase text-slate-300">Thước Đo Jackpot Real-Time</span>
+                    </div>
+                    <span id="alert-badge" class="px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-slate-800 text-slate-400">CHỜ TÍNH...</span>
+                </div>
+                <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+                    <div id="meter-bar" class="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-blue-500 via-amber-400 to-red-500" style="width: 0%;"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-1 text-[9px] text-slate-400">
+                    <div>Độ hội tụ bộ số vừa sinh: <b id="meter-score-text" class="text-amber-400">0%</b></div>
+                    <div class="text-right">Tích lũy ước tính: <b id="jackpot-val-display" class="text-slate-200">-- Tỷ VNĐ</b></div>
+                </div>
+            </div>
+
+            <div class="sticky bottom-0 z-20 pt-1 bg-slate-900 md:static">
+                <button id="btn-train" onclick="trainAndPredict()" class="w-full py-3 bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 active:opacity-90 font-extrabold text-white rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider">
+                    <i data-lucide="cpu" class="w-4 h-4"></i> HUẤN LUYỆN TENSORFLOW AI
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Thống Kê -->
+    <div id="stats-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <h3 class="text-xs sm:text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-400"></i> Thống kê Lịch sử Kỳ quay
+                </h3>
+                <button onclick="toggleStatsModal(false)" class="p-1 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <h4 class="text-xs font-bold text-slate-300 mb-2">Biểu đồ tần suất xuất hiện số</h4>
+                    <div class="h-40 w-full">
+                        <canvas id="frequencyChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <h4 class="text-xs font-bold text-slate-300 mb-2">Lịch sử kết quả</h4>
+                    <div class="overflow-x-auto max-h-40 custom-scrollbar">
+                        <table class="w-full text-xs text-left text-slate-300 min-w-[380px]">
+                            <thead class="text-[10px] uppercase bg-slate-900 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="px-2 py-1.5">Kỳ quay</th>
+                                    <th class="px-2 py-1.5">Ngày</th>
+                                    <th class="px-2 py-1.5">Kết quả quay thưởng</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-slate-800"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawDraws = [];
+        let chartInstance = null;
+        let currentTicketCount = 2;
+        let lastRealJackpotBillionVnd = null;
+        let currentGeneratedTickets = [];
+        let lastRawVectorProbs = [];
+
+        const WORKER_URL = "https://vietlott-gemini.nguyenchemical.workers.dev/";
+        const REPO_RAW_BASE = "https://nguyenchemical.github.io/Vietlott-Live-Gemini/data/";
+        const LS_KEYS = { session: 'vietlott_cf_session_token' };
+
+        function toggleRememberCheckbox() {
+            const cb = document.getElementById('remember-me');
+            cb.checked = !cb.checked;
+        }
+
+        function logoutApp() {
+            localStorage.removeItem(LS_KEYS.session);
+            location.reload();
+        }
+
+        async function checkAppAuthentication() {
+            const token = localStorage.getItem(LS_KEYS.session);
+            if (token) {
+                document.getElementById('auth-modal').classList.add('hidden');
+                return true;
+            }
+            document.getElementById('auth-modal').classList.remove('hidden');
+            return false;
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const passwordInput = document.getElementById('app-password-input').value.trim();
+            const remember = document.getElementById('remember-me').checked;
+            const btn = document.getElementById('btn-login');
+            const errEl = document.getElementById('auth-error');
+
+            btn.disabled = true;
+            btn.innerText = "ĐANG XÁC THỰC WORKER...";
+            errEl.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${WORKER_URL}api/verify-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.s
